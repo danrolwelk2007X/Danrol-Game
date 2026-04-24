@@ -131,6 +131,44 @@
   canvas {
     display: block;
   }
+
+  /* 📱 BOTONES MÓVILES */
+  #mobileControls {
+    position: fixed;
+    bottom: 20px;
+    left: 0;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    padding: 0 25px;
+    z-index: 50;
+    pointer-events: auto;
+  }
+
+  #mobileControls button {
+    width: 155px;
+    height: 90px;
+    border: none;
+    border-radius: 20px;
+    font-size: 22px;
+    font-weight: bold;
+    cursor: pointer;
+    color: black;
+    background: white;
+    box-shadow: 0 0 18px rgba(255,255,255,0.25);
+    opacity: 0.92;
+  }
+
+  #mobileControls button:active {
+    transform: scale(0.95);
+  }
+
+  /* Ocultar botones en PC */
+  @media (min-width: 900px) {
+    #mobileControls {
+      display: none;
+    }
+  }
 </style>
 </head>
 
@@ -168,6 +206,12 @@
 
 <canvas id="canvas"></canvas>
 
+<!-- 📱 BOTONES -->
+<div id="mobileControls">
+  <button id="btnFly">FLY 🚀</button>
+  <button id="btnCrouch">DOWN ⬇️</button>
+</div>
+
 <script>
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
@@ -175,6 +219,11 @@ const ctx = canvas.getContext("2d");
 const menu = document.getElementById("menu");
 const nameInput = document.getElementById("nameInput");
 
+// 📱 Botones móviles
+const btnFly = document.getElementById("btnFly");
+const btnCrouch = document.getElementById("btnCrouch");
+
+// Ajuste de pantalla
 function resize() {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
@@ -236,6 +285,7 @@ function resetGame() {
   startTime = performance.now();
 }
 
+// CONTROLES PC
 document.addEventListener("keydown", (e) => {
   if (e.code === "ShiftLeft" || e.code === "ShiftRight") keys.shift = true;
   if (e.code === "Enter") keys.enter = true;
@@ -245,6 +295,35 @@ document.addEventListener("keyup", (e) => {
   if (e.code === "ShiftLeft" || e.code === "ShiftRight") keys.shift = false;
   if (e.code === "Enter") keys.enter = false;
 });
+
+// 📱 BOTÓN FLY (Touch)
+btnFly.addEventListener("touchstart", (e) => {
+  e.preventDefault();
+  keys.shift = true;
+}, { passive: false });
+
+btnFly.addEventListener("touchend", (e) => {
+  e.preventDefault();
+  keys.shift = false;
+}, { passive: false });
+
+// 📱 BOTÓN DOWN (Touch)
+btnCrouch.addEventListener("touchstart", (e) => {
+  e.preventDefault();
+  keys.enter = true;
+}, { passive: false });
+
+btnCrouch.addEventListener("touchend", (e) => {
+  e.preventDefault();
+  keys.enter = false;
+}, { passive: false });
+
+// Extra mouse
+btnFly.addEventListener("mousedown", () => keys.shift = true);
+btnFly.addEventListener("mouseup", () => keys.shift = false);
+
+btnCrouch.addEventListener("mousedown", () => keys.enter = true);
+btnCrouch.addEventListener("mouseup", () => keys.enter = false);
 
 function startGame(char) {
   let nameValue = nameInput.value.trim();
@@ -639,13 +718,13 @@ function drawHUD() {
   ctx.fillText("Tiempo: " + formatTime(currentTime), 20, 85);
 
   let savedBestTime = localStorage.getItem("danrol_best_time");
-let savedBestName = localStorage.getItem("danrol_best_name") || "Nadie";
+  let savedBestName = localStorage.getItem("danrol_best_name") || "Nadie";
 
-if (savedBestTime) {
-  ctx.fillText("Record: " + savedBestName + " (" + formatTime(parseFloat(savedBestTime)) + ")", 20, 110);
-} else {
-  ctx.fillText("Record: Ninguno", 20, 110);
-}
+  if (savedBestTime) {
+    ctx.fillText("Record: " + savedBestName + " (" + formatTime(parseFloat(savedBestTime)) + ")", 20, 110);
+  } else {
+    ctx.fillText("Record: Ninguno", 20, 110);
+  }
 
   let progress = distance / totalDistance;
   if (progress > 1) progress = 1;
@@ -660,41 +739,6 @@ if (savedBestTime) {
   ctx.font = "16px Arial";
   ctx.textAlign = "center";
   ctx.fillText(Math.floor(progress * 100) + "%", canvas.width / 2, 55);
-}
-
-function drawEndScreen(win) {
-  ctx.fillStyle = "rgba(0,0,0,0.88)";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  if (win) {
-    ctx.fillStyle = "#00ffb3";
-    ctx.font = "bold 55px Arial";
-    ctx.textAlign = "center";
-    ctx.fillText("WINNER DANROL GAME", canvas.width / 2, canvas.height / 2 - 80);
-
-    ctx.fillStyle = "#fff";
-    ctx.font = "bold 28px Arial";
-    ctx.fillText("Felicidades " + playerName + " (" + playerChar + ")", canvas.width / 2, canvas.height / 2 - 20);
-
-  } else {
-    ctx.fillStyle = "#ff004c";
-    ctx.font = "bold 55px Arial";
-    ctx.textAlign = "center";
-    ctx.fillText("LOSER DANROL GAME", canvas.width / 2, canvas.height / 2 - 80);
-
-    ctx.fillStyle = "#fff";
-    ctx.font = "bold 28px Arial";
-    ctx.fillText(playerName + " perdió...", canvas.width / 2, canvas.height / 2 - 20);
-  }
-
-  ctx.fillStyle = "#fff";
-  ctx.font = "bold 22px Arial";
-  ctx.fillText("Tiempo: " + formatTime(currentTime), canvas.width / 2, canvas.height / 2 + 40);
-
-  if (bestTime) {
-    ctx.fillStyle = "#ff55ff";
-    ctx.fillText("Record: " + bestName + " (" + formatTime(parseFloat(bestTime)) + ")", canvas.width / 2, canvas.height / 2 + 80);
-  }
 }
 
 function loop() {
@@ -726,12 +770,10 @@ function loop() {
       bestName = playerName;
     }
 
-    drawEndScreen(true);
-
     setTimeout(() => {
       alert("🏆 WINNER DANROL GAME\n" + playerName + " ganó!\nTiempo: " + formatTime(currentTime));
       location.reload();
-    }, 1400);
+    }, 800);
 
     return;
   }
