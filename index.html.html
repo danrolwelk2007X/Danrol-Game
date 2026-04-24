@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Danrol Maths - Fly Run</title>
+
+<style>
+  body {
+    margin: 0;
+    overflow: hidden;
+    background: #050010;
+    font-family: Arial, sans-serif;
+    color: white;
+    user-select: none;
+  }
+
+  #menu {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at top, #2a0044, #000);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    z-index: 5;
+    text-align: center;
+  }
+
+  #menu h1 {
+    font-size: 60px;
+    margin: 0;
+    color: #00ffb3;
+    text-shadow: 0 0 20px rgba(0,255,180,0.6);
+  }
+
+  #menu p {
+    max-width: 720px;
+    opacity: 0.9;
+    line-height: 1.6;
+    font-size: 18px;
+  }
+
+  #nameInput {
+    margin-top: 15px;
+    padding: 12px;
+    font-size: 18px;
+    width: 280px;
+    border-radius: 12px;
+    border: none;
+    outline: none;
+    text-align: center;
+    background: rgba(255,255,255,0.1);
+    color: white;
+    box-shadow: 0 0 15px rgba(0,255,180,0.2);
+  }
+
+  .btnRow {
+    display: flex;
+    gap: 15px;
+    margin-top: 20px;
+  }
+
+  .btn {
+    padding: 14px 40px;
+    font-size: 22px;
+    border: none;
+    border-radius: 14px;
+    cursor: pointer;
+    background: linear-gradient(90deg, #00ffb3, #00ccff);
+    font-weight: bold;
+    color: black;
+    transition: 0.2s;
+    box-shadow: 0 0 20px rgba(0,255,200,0.25);
+  }
+
+  .btn:hover {
+    transform: scale(1.07);
+  }
+
+  /* LOGO */
+  #logoBox {
+    width: 170px;
+    height: 170px;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.35);
+    border: 4px solid rgba(255,255,255,0.12);
+    box-shadow: 0 0 35px rgba(0,255,180,0.35);
+    margin-bottom: 15px;
+    position: relative;
+  }
+
+  .eye {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    border-radius: 14px;
+    top: 45px;
+    background: rgba(255,255,255,0.08);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 32px;
+    font-weight: bold;
+  }
+
+  #eyeX {
+    left: 30px;
+    color: #00ccff;
+    box-shadow: 0 0 15px rgba(0,200,255,0.4);
+  }
+
+  #eyeY {
+    right: 30px;
+    color: #ff55ff;
+    box-shadow: 0 0 15px rgba(255,80,255,0.4);
+  }
+
+  #smile {
+    position: absolute;
+    bottom: 35px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100px;
+    height: 50px;
+    border-bottom: 10px solid #00ffb3;
+    border-radius: 0 0 100px 100px;
+    opacity: 0.9;
+  }
+
+  canvas {
+    display: block;
+  }
+</style>
+</head>
+
+<body>
+
+<div id="menu">
+  <div id="logoBox">
+    <div class="eye" id="eyeX">X</div>
+    <div class="eye" id="eyeY">Y</div>
+    <div id="smile"></div>
+  </div>
+
+  <h1>Danrol GAME</h1>
+
+  <p>
+    🚀 SHIFT = volar / subir<br>
+    Soltar SHIFT = caer<br>
+    ENTER = agacharse<br><br>
+    ⚠️ Muy difícil: piedras, flechas, fuego, pájaros y hachas voladoras.<br>
+    🏆 Gana con el mejor tiempo.
+  </p>
+
+  <input id="nameInput" placeholder="Escribe tu nombre..." maxlength="14">
+
+  <div class="btnRow">
+    <button class="btn" onclick="startGame('X')">Jugar X</button>
+    <button class="btn" onclick="startGame('Y')">Jugar Y</button>
+    <button class="btn" onclick="startGame('∞')">Jugar ∞</button>
+  </div>
+
+  <p style="opacity:0.7; margin-top:20px;">
+    📌 Tip: Las hachas te obligan a moverte rápido.
+  </p>
+</div>
+
+<canvas id="canvas"></canvas>
+
+<script>
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+const menu = document.getElementById("menu");
+const nameInput = document.getElementById("nameInput");
+
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+window.addEventListener("resize", resize);
+resize();
+
+// GAME STATE
+let running = false;
+let playerChar = "X";
+let playerName = "Player";
+
+let totalDistance = 22000;
+let distance = 0;
+
+let lives = 3;
+let gameSpeed = 8;
+
+let keys = {
+  shift: false,
+  enter: false
+};
+
+let player = {
+  x: 140,
+  y: 0,
+  w: 65,
+  h: 80,
+  vy: 0,
+  color: "#00ccff",
+  crouchH: 45
+};
+
+let floorY = () => canvas.height - 100;
+
+let obstacles = [];
+let birds = [];
+let platforms = [];
+let axes = [];
+
+let startTime = 0;
+let currentTime = 0;
+
+let bestTime = localStorage.getItem("danrol_best_time") || null;
+let bestName = localStorage.getItem("danrol_best_name") || "Nadie";
+
+function resetGame() {
+  distance = 0;
+  lives = 3;
+
+  obstacles = [];
+  birds = [];
+  platforms = [];
+  axes = [];
+
+  player.y = floorY() - player.h;
+  player.vy = 0;
+
+  startTime = performance.now();
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.code === "ShiftLeft" || e.code === "ShiftRight") keys.shift = true;
+  if (e.code === "Enter") keys.enter = true;
+});
+
+document.addEventListener("keyup", (e) => {
+  if (e.code === "ShiftLeft" || e.code === "ShiftRight") keys.shift = false;
+  if (e.code === "Enter") keys.enter = false;
+});
+
+function startGame(char) {
+  let nameValue = nameInput.value.trim();
+
+  if (nameValue.length < 2) {
+    alert("⚠️ Escribe tu nombre antes de jugar.");
+    return;
+  }
+
+  playerName = nameValue;
+  playerChar = char;
+
+  if (char === "X") player.color = "#00ccff";
+  if (char === "Y") player.color = "#ff55ff";
+  if (char === "∞") player.color = "#ffaa00";
+
+  menu.style.display = "none";
+  running = true;
+
+  resetGame();
+  spawnLoop();
+  requestAnimationFrame(loop);
+}
+
+function rectCollide(a, b) {
+  return (
+    a.x < b.x + b.w &&
+    a.x + a.w > b.x &&
+    a.y < b.y + b.h &&
+    a.y + a.h > b.y
+  );
+}
+
+function spawnObstacle() {
+  let type = Math.floor(Math.random() * 4);
+
+  if (type === 0) {
+    obstacles.push({
+      x: canvas.width + 50,
+      y: floorY() - 40,
+      w: 65,
+      h: 40,
+      type: "arrow"
+    });
+  }
+
+  if (type === 1) {
+    obstacles.push({
+      x: canvas.width + 50,
+      y: floorY() - 60,
+      w: 60,
+      h: 60,
+      type: "rock"
+    });
+  }
+
+  if (type === 2) {
+    obstacles.push({
+      x: canvas.width + 50,
+      y: floorY() - 25,
+      w: 150,
+      h: 25,
+      type: "hot"
+    });
+  }
+
+  if (type === 3) {
+    obstacles.push({
+      x: canvas.width + 50,
+      y: floorY() - 90,
+      w: 40,
+      h: 90,
+      type: "spike"
+    });
+  }
+}
+
+function spawnBird() {
+  birds.push({
+    x: canvas.width + 50,
+    y: floorY() - (Math.random() * 320 + 150),
+    w: 65,
+    h: 40,
+    wave: Math.random() * 999
+  });
+}
+
+function spawnPlatform() {
+  platforms.push({
+    x: canvas.width + 50,
+    y: floorY() - (Math.random() * 250 + 150),
+    w: 180,
+    h: 20,
+    move: Math.random() < 0.45
+  });
+}
+
+function spawnAxe() {
+  axes.push({
+    x: canvas.width + 80,
+    y: Math.random() * (canvas.height - 300) + 80,
+    w: 60,
+    h: 60,
+    rot: 0,
+    speed: gameSpeed + 4
+  });
+}
+
+function spawnLoop() {
+  if (!running) return;
+
+  let r = Math.random();
+
+  if (r < 0.9) spawnObstacle();
+  if (r > 0.45) spawnBird();
+  if (r > 0.35) spawnPlatform();
+  if (r > 0.55) spawnAxe();
+
+  let time = Math.random() * 650 + 320;
+  setTimeout(spawnLoop, time);
+}
+
+function loseLife() {
+  lives--;
+
+  if (lives <= 0) {
+    running = false;
+
+    setTimeout(() => {
+      alert("💀 LOSER DANROL GAME\n" + playerName + " perdió...");
+      location.reload();
+    }, 150);
+  }
+}
+
+function updatePlayer() {
+  let isCrouching = keys.enter;
+  player.h = isCrouching ? player.crouchH : 80;
+
+  if (keys.shift) {
+    player.vy -= 0.65;
+    if (player.vy < -8) player.vy = -8;
+  } else {
+    player.vy += 0.5;
+    if (player.vy > 8) player.vy = 8;
+  }
+
+  player.y += player.vy;
+
+  let ground = floorY() - player.h;
+
+  if (player.y > ground) {
+    player.y = ground;
+    player.vy = 0;
+  }
+
+  if (player.y < 30) {
+    player.y = 30;
+    player.vy = 0;
+  }
+
+  for (let p of platforms) {
+    let onTop =
+      player.x + player.w > p.x + 10 &&
+      player.x < p.x + p.w - 10 &&
+      player.y + player.h >= p.y - 5 &&
+      player.y + player.h <= p.y + 20 &&
+      player.vy > 0;
+
+    if (onTop) {
+      player.y = p.y - player.h;
+      player.vy = 0;
+    }
+  }
+}
+
+function updateObjects() {
+  for (let i = obstacles.length - 1; i >= 0; i--) {
+    obstacles[i].x -= gameSpeed;
+    if (obstacles[i].x < -300) obstacles.splice(i, 1);
+  }
+
+  for (let i = birds.length - 1; i >= 0; i--) {
+    birds[i].x -= (gameSpeed + 2);
+    birds[i].y += Math.sin((Date.now() / 180) + birds[i].wave) * 1.4;
+    if (birds[i].x < -250) birds.splice(i, 1);
+  }
+
+  for (let i = platforms.length - 1; i >= 0; i--) {
+    platforms[i].x -= gameSpeed;
+
+    if (platforms[i].move) {
+      platforms[i].y += Math.sin(Date.now() / 350) * 0.8;
+    }
+
+    if (platforms[i].x < -300) platforms.splice(i, 1);
+  }
+
+  for (let i = axes.length - 1; i >= 0; i--) {
+    axes[i].x -= axes[i].speed;
+    axes[i].rot += 0.2;
+    if (axes[i].x < -300) axes.splice(i, 1);
+  }
+}
+
+function checkHits() {
+  let p = player;
+
+  for (let obs of obstacles) {
+    if (rectCollide(p, obs)) {
+      obs.x = -999;
+      loseLife();
+      return;
+    }
+  }
+
+  for (let b of birds) {
+    if (rectCollide(p, b)) {
+      b.x = -999;
+      loseLife();
+      return;
+    }
+  }
+
+  for (let ax of axes) {
+    if (rectCollide(p, ax)) {
+      ax.x = -999;
+      loseLife();
+      return;
+    }
+  }
+}
+
+function drawBackground() {
+  ctx.fillStyle = "#050010";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  for (let i = 0; i < 90; i++) {
+    let x = (i * 190 + (Date.now() / 7)) % canvas.width;
+    let y = (i * 85) % canvas.height;
+
+    ctx.fillStyle = "rgba(255,255,255,0.12)";
+    ctx.fillRect(x, y, 2, 2);
+  }
+}
+
+function drawFloor() {
+  ctx.fillStyle = "rgba(0,255,180,0.2)";
+  ctx.fillRect(0, floorY(), canvas.width, 10);
+}
+
+function drawPlayer() {
+  ctx.fillStyle = player.color;
+  ctx.shadowBlur = 22;
+  ctx.shadowColor = player.color;
+  ctx.fillRect(player.x, player.y, player.w, player.h);
+  ctx.shadowBlur = 0;
+
+  ctx.fillStyle = "black";
+  ctx.font = "bold 34px Arial";
+  ctx.textAlign = "center";
+  ctx.fillText(playerChar, player.x + player.w / 2, player.y + player.h / 1.6);
+
+  if (keys.shift) {
+    ctx.fillStyle = "orange";
+    ctx.fillRect(player.x + 22, player.y + player.h, 20, 20);
+  }
+}
+
+function drawObstacles() {
+  for (let obs of obstacles) {
+    if (obs.type === "arrow") {
+      ctx.fillStyle = "#ff4444";
+      ctx.beginPath();
+      ctx.moveTo(obs.x, obs.y + 10);
+      ctx.lineTo(obs.x + 45, obs.y + 10);
+      ctx.lineTo(obs.x + 45, obs.y);
+      ctx.lineTo(obs.x + 65, obs.y + 20);
+      ctx.lineTo(obs.x + 45, obs.y + 40);
+      ctx.lineTo(obs.x + 45, obs.y + 30);
+      ctx.lineTo(obs.x, obs.y + 30);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    if (obs.type === "rock") {
+      ctx.fillStyle = "#777";
+      ctx.beginPath();
+      ctx.arc(obs.x + 30, obs.y + 30, 30, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#333";
+      ctx.beginPath();
+      ctx.arc(obs.x + 20, obs.y + 20, 12, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    if (obs.type === "hot") {
+      ctx.fillStyle = "orange";
+      ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
+      ctx.fillStyle = "red";
+      ctx.fillRect(obs.x, obs.y + 5, obs.w, 5);
+    }
+
+    if (obs.type === "spike") {
+      ctx.fillStyle = "#cc00ff";
+      ctx.beginPath();
+      ctx.moveTo(obs.x, obs.y + obs.h);
+      ctx.lineTo(obs.x + obs.w / 2, obs.y);
+      ctx.lineTo(obs.x + obs.w, obs.y + obs.h);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+}
+
+function drawBirds() {
+  for (let b of birds) {
+    ctx.fillStyle = "#ddd";
+    ctx.beginPath();
+    ctx.ellipse(b.x + 30, b.y + 20, 30, 20, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = "#fff";
+    ctx.beginPath();
+    ctx.ellipse(b.x + 18, b.y + 10, 15, 8, 0.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = "#000";
+    ctx.beginPath();
+    ctx.arc(b.x + 45, b.y + 18, 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawPlatforms() {
+  for (let p of platforms) {
+    ctx.fillStyle = p.move ? "#00ffb3" : "#444";
+    ctx.fillRect(p.x, p.y, p.w, p.h);
+  }
+}
+
+function drawAxes() {
+  for (let ax of axes) {
+    ctx.save();
+    ctx.translate(ax.x + ax.w / 2, ax.y + ax.h / 2);
+    ctx.rotate(ax.rot);
+
+    ctx.fillStyle = "#bbbbbb";
+    ctx.fillRect(-8, -30, 16, 60);
+
+    ctx.fillStyle = "#ff004c";
+    ctx.beginPath();
+    ctx.moveTo(-30, -15);
+    ctx.lineTo(0, -30);
+    ctx.lineTo(30, -15);
+    ctx.lineTo(0, 0);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(-30, 15);
+    ctx.lineTo(0, 30);
+    ctx.lineTo(30, 15);
+    ctx.lineTo(0, 0);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.restore();
+  }
+}
+
+function formatTime(ms) {
+  let totalSec = ms / 1000;
+  let min = Math.floor(totalSec / 60);
+  let sec = (totalSec % 60).toFixed(2);
+  return `${min}:${sec.padStart(5, "0")}`;
+}
+
+function drawHUD() {
+  ctx.fillStyle = "rgba(0,0,0,0.45)";
+  ctx.fillRect(10, 10, 470, 115);
+
+  ctx.fillStyle = "#fff";
+  ctx.font = "bold 20px Arial";
+  ctx.textAlign = "left";
+  ctx.fillText("Jugador: " + playerName, 20, 35);
+
+  ctx.fillText("Vidas: " + "❤️".repeat(lives), 20, 60);
+
+  currentTime = performance.now() - startTime;
+  ctx.font = "bold 18px Arial";
+  ctx.fillText("Tiempo: " + formatTime(currentTime), 20, 85);
+
+  let savedBestTime = localStorage.getItem("danrol_best_time");
+let savedBestName = localStorage.getItem("danrol_best_name") || "Nadie";
+
+if (savedBestTime) {
+  ctx.fillText("Record: " + savedBestName + " (" + formatTime(parseFloat(savedBestTime)) + ")", 20, 110);
+} else {
+  ctx.fillText("Record: Ninguno", 20, 110);
+}
+
+  let progress = distance / totalDistance;
+  if (progress > 1) progress = 1;
+
+  ctx.fillStyle = "rgba(255,255,255,0.15)";
+  ctx.fillRect(canvas.width / 2 - 220, 20, 440, 18);
+
+  ctx.fillStyle = "#00ffb3";
+  ctx.fillRect(canvas.width / 2 - 220, 20, 440 * progress, 18);
+
+  ctx.fillStyle = "#fff";
+  ctx.font = "16px Arial";
+  ctx.textAlign = "center";
+  ctx.fillText(Math.floor(progress * 100) + "%", canvas.width / 2, 55);
+}
+
+function drawEndScreen(win) {
+  ctx.fillStyle = "rgba(0,0,0,0.88)";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  if (win) {
+    ctx.fillStyle = "#00ffb3";
+    ctx.font = "bold 55px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText("WINNER DANROL GAME", canvas.width / 2, canvas.height / 2 - 80);
+
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 28px Arial";
+    ctx.fillText("Felicidades " + playerName + " (" + playerChar + ")", canvas.width / 2, canvas.height / 2 - 20);
+
+  } else {
+    ctx.fillStyle = "#ff004c";
+    ctx.font = "bold 55px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText("LOSER DANROL GAME", canvas.width / 2, canvas.height / 2 - 80);
+
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 28px Arial";
+    ctx.fillText(playerName + " perdió...", canvas.width / 2, canvas.height / 2 - 20);
+  }
+
+  ctx.fillStyle = "#fff";
+  ctx.font = "bold 22px Arial";
+  ctx.fillText("Tiempo: " + formatTime(currentTime), canvas.width / 2, canvas.height / 2 + 40);
+
+  if (bestTime) {
+    ctx.fillStyle = "#ff55ff";
+    ctx.fillText("Record: " + bestName + " (" + formatTime(parseFloat(bestTime)) + ")", canvas.width / 2, canvas.height / 2 + 80);
+  }
+}
+
+function loop() {
+  if (!running) return;
+
+  distance += gameSpeed;
+
+  drawBackground();
+  drawFloor();
+
+  updateObjects();
+  updatePlayer();
+  checkHits();
+
+  drawPlatforms();
+  drawObstacles();
+  drawBirds();
+  drawAxes();
+  drawPlayer();
+  drawHUD();
+
+  if (distance >= totalDistance) {
+    running = false;
+
+    if (!bestTime || currentTime < parseFloat(bestTime)) {
+      localStorage.setItem("danrol_best_time", currentTime);
+      localStorage.setItem("danrol_best_name", playerName);
+      bestTime = currentTime;
+      bestName = playerName;
+    }
+
+    drawEndScreen(true);
+
+    setTimeout(() => {
+      alert("🏆 WINNER DANROL GAME\n" + playerName + " ganó!\nTiempo: " + formatTime(currentTime));
+      location.reload();
+    }, 1400);
+
+    return;
+  }
+
+  requestAnimationFrame(loop);
+}
+</script>
+
+</body>
+</html>
